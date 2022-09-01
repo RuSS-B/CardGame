@@ -174,6 +174,7 @@ func TestDrawNCards(t *testing.T) {
 	UUID, _ := model.insert(app.DB)
 
 	n := 4
+	expected := len(model.Cards) - n
 	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/decks/%s?count=%d", UUID, n), nil)
 	res := handleRequest(req)
 
@@ -182,5 +183,11 @@ func TestDrawNCards(t *testing.T) {
 	cards := assertCards(t, res)
 	if len(cards) != n {
 		t.Errorf("Expected to get %d cards, instead got %d", n, len(cards))
+	}
+
+	model = Deck{}
+	d, _ := model.get(app.DB, UUID)
+	if len(d.Cards) != expected {
+		t.Errorf("Expected to remain %d cards in the deck but got, instead got %d", expected, len(d.Cards))
 	}
 }

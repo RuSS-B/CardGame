@@ -12,8 +12,8 @@ var values = [13]string{"ACE", "2", "3", "4", "5", "6", "7", "8", "9", "10", "JE
 var codeMap = make(map[string]Card, 0)
 
 type Deck struct {
-	Cards    []Card `json:"cards"`
-	Shuffled bool   `json:"shuffled"`
+	Cards    []Card
+	Shuffled bool
 }
 
 func New(shuffle bool, cards []string) (Deck, error) {

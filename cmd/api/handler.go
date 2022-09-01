@@ -113,7 +113,7 @@ func (app *Application) drawCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, cards := d.Cards[0:count], d.Cards[count+1:]
+	c, cards := d.Cards[0:count], d.Cards[count:]
 	d.Cards = cards
 	if err := d.update(app.DB); err != nil {
 		JsonErrorResponse(w, http.StatusInternalServerError, "Internal server error")

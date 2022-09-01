@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-const version = "0.9"
+const version = "1.0"
 
 func main() {
 	fmt.Printf("###############################################\n")

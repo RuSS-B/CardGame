@@ -14,5 +14,20 @@ services:
     volumes:
       - postgres:/data/postgres
 
+  api:
+    container_name: cards_api
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    restart: on-failure
+    depends_on:
+      - db
+    environment:
+      - DATABASE_DSN=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      - APP_PORT=${APP_PORT}
+      - APP_ENV=prod
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
 volumes:
   postgres:

@@ -2,11 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -17,36 +20,47 @@ type Application struct {
 }
 
 type Config struct {
-	port       string
-	dbUser     string
-	dbPassword string
-	dbName     string
-	dbPort     string
+	appEnv      string
+	port        string
+	databaseDsn string
+	dbUser      string
+	dbPassword  string
+	dbName      string
+	dbHost      string
+	dbPort      string
 }
 
 func (cfg *Config) initialize() {
+	flag.StringVar(&cfg.appEnv, "appEnv", os.Getenv("APP_ENV"), "Application Environment")
+	flag.Parse()
 
+	if cfg.appEnv == "test" {
+		fileName := "./../../.env.test"
+		err := godotenv.Load(fileName)
+		if err != nil {
+			log.Println("Unable to load file", fileName)
+		}
+	}
+
+	flag.StringVar(&cfg.databaseDsn, "databaseDsn", os.Getenv("DATABASE_DSN"), "Database DSN")
+	flag.StringVar(&cfg.port, "appPort", os.Getenv("APP_PORT"), "Application Port")
+
+	flag.Parse()
+
+	fmt.Println(cfg)
 }
 
 func newApp() Application {
-	//This will be hardcoded for a while
-	cfg := Config{
-		port:       "8080",
-		dbUser:     "postgres",
-		dbPassword: "pgpwd#goesHere123",
-		dbName:     "app",
-		dbPort:     "5432",
-	}
+	cfg := Config{}
 	cfg.initialize()
 	app := Application{
 		config: cfg,
 	}
 
 	var err error
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s port=%s sslmode=disable", cfg.dbUser, cfg.dbPassword, cfg.dbName, cfg.dbPort)
-	app.DB, err = sql.Open("postgres", connStr)
+	app.DB, err = sql.Open("postgres", cfg.databaseDsn)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	if err = app.DB.Ping(); err != nil {
@@ -69,7 +83,7 @@ func (app *Application) serve() {
 		WriteTimeout:      5 * time.Second,
 	}
 
-	log.Printf("Starting server in \"%s\" mode on port %s\n", "PROD", app.config.port)
+	log.Printf("Starting server in \"%s\" mode on port %s\n", app.config.appEnv, app.config.port)
 
 	log.Fatal(srv.ListenAndServe())
 }
