@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"time"
@@ -15,17 +17,40 @@ type Application struct {
 }
 
 type Config struct {
-	port string
+	port       string
+	dbUser     string
+	dbPassword string
+	dbName     string
+	dbPort     string
+}
+
+func (cfg *Config) initialize() {
+
 }
 
 func newApp() Application {
+	//This will be hardcoded for a while
 	cfg := Config{
-		port: "8080",
+		port:       "8080",
+		dbUser:     "postgres",
+		dbPassword: "pgpwd#goesHere123",
+		dbName:     "app",
+		dbPort:     "5432",
+	}
+	cfg.initialize()
+	app := Application{
+		config: cfg,
 	}
 
-	app := Application{
-		DB:     nil,
-		config: cfg,
+	var err error
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s port=%s sslmode=disable", cfg.dbUser, cfg.dbPassword, cfg.dbName, cfg.dbPort)
+	app.DB, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = app.DB.Ping(); err != nil {
+		log.Fatal(err)
 	}
 
 	app.Router = chi.NewRouter()
