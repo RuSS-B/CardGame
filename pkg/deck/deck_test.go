@@ -29,7 +29,7 @@ func isOrderedByDefault(d Deck) bool {
 		for j, value := range values {
 			pos := i*len(values) + j
 			c := d.Cards[pos]
-			if c.Value != value || c.Suit != suit {
+			if c.Val != value || c.Suit != suit {
 				return false
 			}
 		}

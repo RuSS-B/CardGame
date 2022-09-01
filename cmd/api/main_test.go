@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/RuSS-B/CardGame/pkg/deck"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,23 +24,21 @@ func TestCreateDeck(t *testing.T) {
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusCreated, res.Code)
+	d := assertDeck(t, res)
 
-	var deck Deck
-	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
-		t.Error("Expected a new deck in response")
-	}
-
-	if deck.Shuffled {
+	if d.Shuffled {
 		t.Error("Expected an unshuffled deck")
 	}
 
-	if deck.UUID == "" {
+	if d.UUID == "" {
 		t.Error("Expected a UUID in response, but got empty string")
 	}
 
-	if deck.Remaining != 52 {
-		t.Errorf("Expected 52 in remaming, but got %d", deck.Remaining)
+	if d.Remaining != 52 {
+		t.Errorf("Expected 52 in remaming, but got %d", d.Remaining)
 	}
+
+	assertDeckJsonStructure(t, res)
 }
 
 func handleRequest(req *http.Request) *httptest.ResponseRecorder {
@@ -55,18 +54,42 @@ func assertStatusCode(t *testing.T, excepted, actual int) {
 	}
 }
 
+func assertDeck(t *testing.T, res *httptest.ResponseRecorder) Deck {
+	var d Deck
+	if err := json.Unmarshal(res.Body.Bytes(), &d); err != nil {
+		t.Error("Expected a new deck in response")
+	}
+
+	return d
+}
+
+func assertContainsText(t *testing.T, res *httptest.ResponseRecorder, str string) {
+	body := res.Body.String()
+	if !strings.Contains(body, str) {
+		t.Errorf("Expected to see a \"%s\" string but it wasn't found", str)
+	}
+}
+
+/**
+ * assertDeckJsonStructure checks if there are certain words included in the json response.
+ * This test might feel a bit redundant, but if someone changes the json attributes in model marshal and unmarshall would still work,
+ * hover we need to be sure that the filed names will remain as they were designed from the beginning
+ */
+func assertDeckJsonStructure(t *testing.T, res *httptest.ResponseRecorder) {
+	assertContainsText(t, res, "deck_id")
+	assertContainsText(t, res, "shuffled")
+	assertContainsText(t, res, "remaining")
+	assertContainsText(t, res, "cards")
+}
+
 func TestCreateShuffledDeck(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/decks?shuffle=1", nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusCreated, res.Code)
+	d := assertDeck(t, res)
 
-	var deck Deck
-	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
-		t.Error("Expected a new deck in response")
-	}
-
-	if !deck.Shuffled {
+	if !d.Shuffled {
 		t.Error("Expected a shuffled deck")
 	}
 }
@@ -77,14 +100,10 @@ func TestCreatePartialDeck(t *testing.T) {
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusCreated, res.Code)
+	d := assertDeck(t, res)
 
-	var deck Deck
-	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
-		t.Error("Expected a new deck in response")
-	}
-
-	if deck.Remaining != len(cards) {
-		t.Errorf("Expected size %d of the deck, but %d given", len(cards), deck.Remaining)
+	if d.Remaining != len(cards) {
+		t.Errorf("Expected size %d of the deck, but %d given", len(cards), d.Remaining)
 	}
 }
 
@@ -97,24 +116,41 @@ func TestCreatePartialDeckWithInvalidCardCode(t *testing.T) {
 }
 
 func TestOpenDeck(t *testing.T) {
-	dUuid := "a251071b-662f-44b6-ba11-e24863039c59"
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", dUuid), nil)
+	newDeck, _ := deck.New(false, []string{})
+	model := createDeck(&newDeck)
+	UUID, _ := model.insert(app.DB)
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", UUID), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusOK, res.Code)
+	d := assertDeck(t, res)
+
+	if d.Remaining != len(model.Cards) {
+		t.Errorf("Expected size %d of the deck, but %d given", len(model.Cards), d.Remaining)
+	}
+
+	assertDeckJsonStructure(t, res)
 }
 
-func TestNotExistingDeck(t *testing.T) {
-	dUuid := "111111111-22222-aaaa-bbbb-ccccccccccc"
+func TestNonExistingDeck(t *testing.T) {
+	dUuid := "a251071b-662f-44b6-ba11-111111111111"
 	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", dUuid), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusNotFound, res.Code)
 }
 
+func TestInvalidDeckUUID(t *testing.T) {
+	dUuid := "invalid-uuid-goes-here-111-2222-fff"
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", dUuid), nil)
+	res := handleRequest(req)
+
+	assertStatusCode(t, http.StatusBadRequest, res.Code)
+}
+
 func TestDrawCard(t *testing.T) {
 	dUuid := "a251071b-662f-44b6-ba11-e24863039c59"
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/cards?deck=%s", dUuid), nil)
+	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/decks/%s", dUuid), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusOK, res.Code)
@@ -123,7 +159,7 @@ func TestDrawCard(t *testing.T) {
 func TestDrawNCards(t *testing.T) {
 	dUuid := "a251071b-662f-44b6-ba11-e24863039c59"
 	n := 5
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/cards?deck=%s&count=%d", dUuid, n), nil)
+	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/deck/%s?count=%d", dUuid, n), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusOK, res.Code)

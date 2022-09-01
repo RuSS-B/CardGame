@@ -23,9 +23,9 @@ func New(shuffle bool, cards []string) (Deck, error) {
 		for _, suit := range suits {
 			for _, value := range values {
 				c := Card{
-					Value: value,
-					Suit:  suit,
-					Code:  generateCardCode(value, suit),
+					Val:  value,
+					Suit: suit,
+					Code: generateCardCode(value, suit),
 				}
 				d.Cards = append(d.Cards, c)
 			}
@@ -62,9 +62,9 @@ func (d *Deck) Size() int {
 }
 
 type Card struct {
-	Value string `json:"value"`
-	Suit  string `json:"suit"`
-	Code  string `json:"code"`
+	Val  string `json:"value"`
+	Suit string `json:"suit"`
+	Code string `json:"code"`
 }
 
 func generateCardCode(value string, suit string) string {
@@ -84,15 +84,15 @@ func makeCodeMap() {
 	for _, v := range values {
 		for _, s := range suits {
 			code := generateCardCode(v, s)
-			codeMap[code] = Card{Value: v, Suit: s}
+			codeMap[code] = Card{Val: v, Suit: s}
 		}
 	}
 }
 
 func (c *Card) MarshalJSON() ([]byte, error) {
 	return json.Marshal(Card{
-		Value: c.Value,
-		Suit:  c.Suit,
-		Code:  generateCardCode(c.Value, c.Suit),
+		Val:  c.Val,
+		Suit: c.Suit,
+		Code: generateCardCode(c.Val, c.Suit),
 	})
 }
