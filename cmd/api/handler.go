@@ -3,12 +3,12 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"github.com/RuSS-B/CardGame/pkg/deck"
 	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -44,6 +44,8 @@ func (app *Application) createDeck(w http.ResponseWriter, r *http.Request) {
 	UUID, err := model.insert(app.DB)
 	if err != nil {
 		JsonResponse(w, http.StatusInternalServerError, nil)
+		log.Println(err)
+		return
 	}
 	model.UUID = UUID
 
@@ -80,7 +82,7 @@ func (app *Application) showDeck(w http.ResponseWriter, r *http.Request) {
 
 	d, errCode := findDeck(app.DB, UUID)
 	if errCode > 0 {
-		JsonErrorResponse(w, errCode, "Unable to get deck")
+		JsonErrorResponse(w, errCode, "Unable to get this deck")
 		return
 	}
 
@@ -97,11 +99,29 @@ func (app *Application) drawCard(w http.ResponseWriter, r *http.Request) {
 
 	d, errCode := findDeck(app.DB, UUID)
 	if errCode > 0 {
-		JsonResponse(w, errCode, nil)
+		JsonErrorResponse(w, errCode, "Unable to get this deck")
 		return
 	}
 
-	JsonResponse(w, http.StatusOK, &d)
+	count, _ := strconv.Atoi(r.URL.Query().Get("count"))
+	if count < 1 {
+		count = 1
+	}
+
+	if count > len(d.Cards) {
+		JsonErrorResponse(w, http.StatusBadRequest, "The draw count is higher than the remaining cards in deck")
+		return
+	}
+
+	c, cards := d.Cards[0:count], d.Cards[count+1:]
+	d.Cards = cards
+	if err := d.update(app.DB); err != nil {
+		JsonErrorResponse(w, http.StatusInternalServerError, "Internal server error")
+		log.Println(err)
+		return
+	}
+
+	JsonResponse(w, http.StatusOK, &c)
 }
 
 func isValidUUID(UUID string) bool {
@@ -120,7 +140,7 @@ func findDeck(DB *sql.DB, UUID string) (Deck, int) {
 		if err == sql.ErrNoRows {
 			return d, http.StatusNotFound
 		} else {
-			fmt.Println(err)
+			log.Println(err)
 			return d, http.StatusInternalServerError
 		}
 	}

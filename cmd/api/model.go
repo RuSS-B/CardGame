@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
-	"errors"
 	"github.com/RuSS-B/CardGame/pkg/deck"
 	"time"
 )
@@ -27,6 +27,14 @@ func (c *Cards) Scan(src any) error {
 	}
 
 	return json.Unmarshal(data, c)
+}
+
+func (c *Cards) Value() (driver.Value, error) {
+	if c == nil {
+		return nil, nil
+	}
+
+	return json.Marshal(c)
 }
 
 type Deck struct {
@@ -73,8 +81,7 @@ func (d *Deck) insert(db *sql.DB) (string, error) {
 	query := `INSERT INTO deck (shuffled, cards) VALUES ($1, $2) RETURNING uuid`
 
 	var UUID string
-	cMarshalled, _ := json.Marshal(d.Cards)
-	if err := db.QueryRowContext(ctx, query, d.Shuffled, cMarshalled).Scan(&UUID); err != nil {
+	if err := db.QueryRowContext(ctx, query, d.Shuffled, &d.Cards).Scan(&UUID); err != nil {
 		return UUID, err
 	}
 
@@ -82,5 +89,14 @@ func (d *Deck) insert(db *sql.DB) (string, error) {
 }
 
 func (d *Deck) update(db *sql.DB) error {
-	return errors.New("not implemented yet")
+	ctx, cancel := getContext()
+	defer cancel()
+
+	query := `UPDATE deck SET cards = $1 WHERE uuid = $2`
+	_, err := db.ExecContext(ctx, query, &d.Cards, d.UUID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

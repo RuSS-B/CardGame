@@ -63,6 +63,15 @@ func assertDeck(t *testing.T, res *httptest.ResponseRecorder) Deck {
 	return d
 }
 
+func assertCards(t *testing.T, res *httptest.ResponseRecorder) Cards {
+	var c Cards
+	if err := json.Unmarshal(res.Body.Bytes(), &c); err != nil {
+		t.Error("Expected a collection of cards")
+	}
+
+	return c
+}
+
 func assertContainsText(t *testing.T, res *httptest.ResponseRecorder, str string) {
 	body := res.Body.String()
 	if !strings.Contains(body, str) {
@@ -133,34 +142,45 @@ func TestOpenDeck(t *testing.T) {
 }
 
 func TestNonExistingDeck(t *testing.T) {
-	dUuid := "a251071b-662f-44b6-ba11-111111111111"
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", dUuid), nil)
+	UUID := "a251071b-662f-44b6-ba11-111111111111"
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", UUID), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusNotFound, res.Code)
 }
 
 func TestInvalidDeckUUID(t *testing.T) {
-	dUuid := "invalid-uuid-goes-here-111-2222-fff"
-	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", dUuid), nil)
+	UUID := "invalid-uuid-goes-here-111-2222-fff"
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/decks/%s", UUID), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusBadRequest, res.Code)
 }
 
 func TestDrawCard(t *testing.T) {
-	dUuid := "a251071b-662f-44b6-ba11-e24863039c59"
-	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/decks/%s", dUuid), nil)
+	newDeck, _ := deck.New(false, []string{})
+	model := createDeck(&newDeck)
+	UUID, _ := model.insert(app.DB)
+
+	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/decks/%s", UUID), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusOK, res.Code)
 }
 
 func TestDrawNCards(t *testing.T) {
-	dUuid := "a251071b-662f-44b6-ba11-e24863039c59"
-	n := 5
-	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/deck/%s?count=%d", dUuid, n), nil)
+	newDeck, _ := deck.New(false, []string{})
+	model := createDeck(&newDeck)
+	UUID, _ := model.insert(app.DB)
+
+	n := 4
+	req, _ := http.NewRequest("PATCH", fmt.Sprintf("/decks/%s?count=%d", UUID, n), nil)
 	res := handleRequest(req)
 
 	assertStatusCode(t, http.StatusOK, res.Code)
+
+	cards := assertCards(t, res)
+	if len(cards) != n {
+		t.Errorf("Expected to get %d cards, instead got %d", n, len(cards))
+	}
 }
