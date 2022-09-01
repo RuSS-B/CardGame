@@ -1,5 +1,9 @@
 include .env
 
+run:
+	@echo Starting the app
+	go build -o ./bin/app ./cmd/api/*.go && ./bin/app
+
 test:
 	@echo Running all tests
 	go test ./...

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +22,24 @@ func TestCreateDeck(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/decks", nil)
 	res := handleRequest(req)
 
-	assertStatusCode(t, http.StatusOK, res.Code)
+	assertStatusCode(t, http.StatusCreated, res.Code)
+
+	var deck Deck
+	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
+		t.Error("Expected a new deck in response")
+	}
+
+	if deck.Shuffled {
+		t.Error("Expected an unshuffled deck")
+	}
+
+	if deck.UUID == "" {
+		t.Error("Expected a UUID in response, but got empty string")
+	}
+
+	if deck.Remaining != 52 {
+		t.Errorf("Expected 52 in remaming, but got %d", deck.Remaining)
+	}
 }
 
 func handleRequest(req *http.Request) *httptest.ResponseRecorder {
@@ -34,6 +53,47 @@ func assertStatusCode(t *testing.T, excepted, actual int) {
 	if excepted != actual {
 		t.Errorf("Expected status code %d but got %d", excepted, actual)
 	}
+}
+
+func TestCreateShuffledDeck(t *testing.T) {
+	req, _ := http.NewRequest("POST", "/decks?shuffle=1", nil)
+	res := handleRequest(req)
+
+	assertStatusCode(t, http.StatusCreated, res.Code)
+
+	var deck Deck
+	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
+		t.Error("Expected a new deck in response")
+	}
+
+	if !deck.Shuffled {
+		t.Error("Expected a shuffled deck")
+	}
+}
+
+func TestCreatePartialDeck(t *testing.T) {
+	cards := []string{"AS", "KD", "AC", "2C", "KH"}
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/decks?cards=%s", strings.Join(cards, ",")), nil)
+	res := handleRequest(req)
+
+	assertStatusCode(t, http.StatusCreated, res.Code)
+
+	var deck Deck
+	if err := json.Unmarshal(res.Body.Bytes(), &deck); err != nil {
+		t.Error("Expected a new deck in response")
+	}
+
+	if deck.Remaining != len(cards) {
+		t.Errorf("Expected size %d of the deck, but %d given", len(cards), deck.Remaining)
+	}
+}
+
+func TestCreatePartialDeckWithInvalidCardCode(t *testing.T) {
+	cards := []string{"AS", "ZZ", "AC"}
+	req, _ := http.NewRequest("POST", fmt.Sprintf("/decks?cards=%s", strings.Join(cards, ",")), nil)
+	res := handleRequest(req)
+
+	assertStatusCode(t, http.StatusBadRequest, res.Code)
 }
 
 func TestOpenDeck(t *testing.T) {

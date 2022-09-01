@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewFullUnshuffled(t *testing.T) {
-	d := New(false, make([]string, 0))
+	d, _ := New(false, make([]string, 0))
 
 	if d.Shuffled == true {
 		t.Error("The deck should not be shuffled by default")
@@ -17,7 +17,7 @@ func TestNewFullUnshuffled(t *testing.T) {
 }
 
 func TestNewFullShuffled(t *testing.T) {
-	d := New(true, make([]string, 0))
+	d, _ := New(true, make([]string, 0))
 
 	if d.Shuffled == false || isOrderedByDefault(d) {
 		t.Error("The deck should be shuffled by default, but it's not")

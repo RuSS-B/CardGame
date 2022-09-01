@@ -2,22 +2,24 @@ package deck
 
 import (
 	"encoding/json"
+	"errors"
 	"math/rand"
 	"time"
 )
 
-var suits = [4]string{"CLUBS", "DIAMONDS", "HEARTS", "SPADES"}
-var values = [14]string{"ACE", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "JESTER", "QUEEN", "KING"}
+var suits = [4]string{"SPADES", "DIAMONDS", "CLUBS", "HEARTS"}
+var values = [13]string{"ACE", "2", "3", "4", "5", "6", "7", "8", "9", "10", "JESTER", "QUEEN", "KING"}
+var codeMap = make(map[string]Card, 0)
 
 type Deck struct {
 	Cards    []Card `json:"cards"`
 	Shuffled bool   `json:"shuffled"`
 }
 
-func New(shuffle bool, filter []string) Deck {
+func New(shuffle bool, cards []string) (Deck, error) {
 	d := Deck{}
 
-	if len(filter) < 1 {
+	if len(cards) == 0 {
 		for _, suit := range suits {
 			for _, value := range values {
 				c := Card{
@@ -28,16 +30,25 @@ func New(shuffle bool, filter []string) Deck {
 				d.Cards = append(d.Cards, c)
 			}
 		}
+	} else {
+		for _, code := range cards {
+			valid, c := isValidCard(code)
+			if valid != true {
+				return d, errors.New("the card seems to be invalid")
+			}
+
+			d.Cards = append(d.Cards, c)
+		}
 	}
 
 	if shuffle {
-		d.Shuffle()
+		d.shuffle()
 	}
 
-	return d
+	return d, nil
 }
 
-func (d *Deck) Shuffle() {
+func (d *Deck) shuffle() {
 	d.Shuffled = true
 
 	rand.Seed(time.Now().UnixNano())
@@ -58,6 +69,24 @@ type Card struct {
 
 func generateCardCode(value string, suit string) string {
 	return value[0:1] + suit[0:1]
+}
+
+func isValidCard(code string) (bool, Card) {
+	if len(codeMap) < 1 {
+		makeCodeMap()
+	}
+
+	val, ok := codeMap[code]
+	return ok, val
+}
+
+func makeCodeMap() {
+	for _, v := range values {
+		for _, s := range suits {
+			code := generateCardCode(v, s)
+			codeMap[code] = Card{Value: v, Suit: s}
+		}
+	}
 }
 
 func (c *Card) MarshalJSON() ([]byte, error) {
