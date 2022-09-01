@@ -5,8 +5,11 @@ import (
 	"net/http"
 )
 
-func (app *Application) routes() http.Handler {
-	mux := chi.NewRouter()
+func (app *Application) initRoutes() {
+	app.Router.Route("/decks", func(r chi.Router) {
+		app.Router.Post("/", app.createDeck)
+	})
+}
 
-	return mux
+func (app *Application) createDeck(w http.ResponseWriter, r *http.Request) {
 }
