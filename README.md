@@ -34,6 +34,7 @@ Example: `curl "http://localhost:8080/decks/7f6b21a8-4698-432c-b3ba-91c2a73301ad
 ### Draw a card
 Example: `curl -X "PATCH" "http://localhost:8080/decks/7f6b21a8-4698-432c-b3ba-91c2a73301ad"`
 
+Note: By default the count parameter is 1, if it's invalid or lower than 1 it will be considered as 1
 ### Draw N cards
 Example: `curl -X "PATCH" "http://localhost:8080/decks/7f6b21a8-4698-432c-b3ba-91c2a73301ad?count=3"`
 
